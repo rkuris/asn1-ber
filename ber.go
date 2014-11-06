@@ -307,7 +307,7 @@ func decodePacket(data []byte) (*Packet, []byte) {
 			p.Value = DecodeInteger(value_data)
 		case TagBitString:
 		case TagOctetString:
-			p.Value = DecodeString(value_data)
+			p.Value = value_data
 		case TagNULL:
 		case TagObjectIdentifier:
 		case TagObjectDescriptor:
@@ -427,4 +427,14 @@ func NewString(ClassType, TagType, Tag uint8, Value, Description string) *Packet
 	p.Value = Value
 	p.Data.Write([]byte(Value))
 	return p
+}
+
+
+func (p *Packet) ValueString() string {
+	if str, ok := p.Value.(string); ok {
+		return str
+	} else if bytes, ok := p.Value.([]byte); ok {
+		return string(bytes)
+	}
+	return ""
 }
