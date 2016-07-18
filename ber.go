@@ -244,20 +244,22 @@ func DecodeInteger(data []byte) (ret uint64) {
 	return
 }
 
-func EncodeInteger(val uint64) []byte {
+func EncodeInteger(val int64) []byte {
+	if val == 0 {
+		return []byte{0}
+	}
+	// figure out how long it is
+	length := 1
+	for i := val; i > 127; i >>= 8 {
+		length++
+	}
+	for i := val; i < -128; i >>= 8 {
+		length++
+	}
+
 	var out bytes.Buffer
-	found := false
-	shift := uint(56)
-	mask := uint64(0xFF00000000000000)
-	for mask > 0 {
-		if !found && (val&mask != 0) {
-			found = true
-		}
-		if found || (shift == 0) {
-			out.Write([]byte{byte((val & mask) >> shift)})
-		}
-		shift -= 8
-		mask = mask >> 8
+	for ; length > 0; length-- {
+		out.WriteByte(byte(val >> uint((length-1)*8)))
 	}
 	return out.Bytes()
 }
@@ -349,7 +351,7 @@ func (p *Packet) DataLength() uint64 {
 func (p *Packet) Bytes() []byte {
 	var out bytes.Buffer
 	out.Write([]byte{p.ClassType | p.TagType | p.Tag})
-	packet_length := EncodeInteger(p.DataLength())
+	packet_length := EncodeInteger(int64(p.DataLength()))
 	if p.DataLength() > 127 || len(packet_length) > 1 {
 		out.Write([]byte{byte(len(packet_length) | 128)})
 		out.Write(packet_length)
@@ -411,14 +413,14 @@ func NewBoolean(ClassType, TagType, Tag uint8, Value bool, Description string) *
 
 	p := Encode(ClassType, TagType, Tag, nil, Description)
 	p.Value = Value
-	p.Data.Write(EncodeInteger(uint64(intValue)))
+	p.Data.Write(EncodeInteger(int64(intValue)))
 	return p
 }
 
 func NewInteger(ClassType, TagType, Tag uint8, Value uint64, Description string) *Packet {
 	p := Encode(ClassType, TagType, Tag, nil, Description)
 	p.Value = Value
-	p.Data.Write(EncodeInteger(Value))
+	p.Data.Write(EncodeInteger(int64(Value)))
 	return p
 }
 
@@ -428,7 +430,6 @@ func NewString(ClassType, TagType, Tag uint8, Value, Description string) *Packet
 	p.Data.Write([]byte(Value))
 	return p
 }
-
 
 func (p *Packet) ValueString() string {
 	if str, ok := p.Value.(string); ok {
